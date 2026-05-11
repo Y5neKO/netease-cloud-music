@@ -239,6 +239,40 @@ func (s *AuthService) LoginByCookieCloud(server, uuid, password string) (*UserPr
 	return s.GetUserProfile()
 }
 
+// SaveConfig 持久化前端配置到 ~/.ncmctl/gui_config.json
+func (s *AuthService) SaveConfig(key string, value string) error {
+	path := configPath()
+	data := make(map[string]string)
+	if raw, err := os.ReadFile(path); err == nil {
+		json.Unmarshal(raw, &data)
+	}
+	data[key] = value
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, raw, 0o644)
+}
+
+// LoadConfig 读取前端配置
+func (s *AuthService) LoadConfig(key string) string {
+	path := configPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var m map[string]string
+	if json.Unmarshal(data, &m) != nil {
+		return ""
+	}
+	return m[key]
+}
+
+func configPath() string {
+	home, _ := os.UserHomeDir()
+	return home + "/.ncmctl/gui_config.json"
+}
+
 func (s *AuthService) Logout() error {
 	a := s.app()
 	_, err := a.api.Layout(context.Background(), &weapi.LayoutReq{})

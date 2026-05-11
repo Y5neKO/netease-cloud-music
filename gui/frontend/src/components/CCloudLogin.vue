@@ -1,9 +1,7 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
-import { NInput, NButton, NSpace, NText } from 'naive-ui'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
-
-import { LoginByCookieCloud } from '../../bindings/auth'
+import { LoginByCookieCloud, SaveConfig, LoadConfig } from '../../bindings/auth'
 
 const userStore = useUserStore()
 
@@ -12,31 +10,26 @@ const uuid = ref('')
 const password = ref('')
 const loading = ref(false)
 const msg = ref('')
+const msgIsError = computed(() => msg.value.includes('失败'))
 
-onMounted(() => {
-  const saved = localStorage.getItem('ncm.cookiecloud')
-  if (saved) {
-    try {
-      const data = JSON.parse(saved)
+onMounted(async () => {
+  try {
+    const raw = await LoadConfig('cookiecloud')
+    if (raw) {
+      const data = JSON.parse(raw)
       server.value = data.server || 'http://127.0.0.1:8088'
       uuid.value = data.uuid || ''
       password.value = data.password || ''
-    } catch {}
-  }
+    }
+  } catch {}
 })
 
 async function login() {
-  if (!uuid.value || !password.value) {
-    msg.value = '请填写 UUID 和密码'
-    return
-  }
+  if (!uuid.value || !password.value) { msg.value = '请填写 UUID 和密码'; return }
   try {
-    loading.value = true
-    msg.value = '连接 CookieCloud...'
-    localStorage.setItem('ncm.cookiecloud', JSON.stringify({
-      server: server.value,
-      uuid: uuid.value,
-      password: password.value
+    loading.value = true; msg.value = ''
+    await SaveConfig('cookiecloud', JSON.stringify({
+      server: server.value, uuid: uuid.value, password: password.value
     }))
     const profile = await LoginByCookieCloud(server.value, uuid.value, password.value)
     userStore.onLoginSuccess(profile)
@@ -49,23 +42,90 @@ async function login() {
 </script>
 
 <template>
-  <NSpace vertical :size="16">
-    <NText depth="3">
-      从 CookieCloud 浏览器插件同步网易云音乐 Cookie
-    </NText>
-    <NInput v-model:value="server" placeholder="CookieCloud 服务器地址" />
-    <NInput v-model:value="uuid" placeholder="UUID" />
-    <NInput
-      v-model:value="password"
-      type="password"
-      showPasswordOn="click"
-      placeholder="密码"
-    />
-    <NButton type="primary" block @click="login" :loading="loading">
-      登录
-    </NButton>
-    <NText v-if="msg" :type="msg.includes('失败') ? 'error' : 'success'">
-      {{ msg }}
-    </NText>
-  </NSpace>
+  <div class="cc-login">
+    <p class="hint">从 CookieCloud 浏览器插件同步网易云音乐 Cookie</p>
+
+    <div class="field">
+      <label class="label">服务器</label>
+      <input v-model="server" type="url" class="input" placeholder="http://127.0.0.1:8088" />
+    </div>
+
+    <div class="field">
+      <label class="label">UUID</label>
+      <input v-model="uuid" type="text" class="input" placeholder="用户 UUID" />
+    </div>
+
+    <div class="field">
+      <label class="label">密码</label>
+      <input v-model="password" type="password" class="input" placeholder="加密密码" />
+    </div>
+
+    <button class="btn-primary" @click="login" :disabled="loading">同步并登录</button>
+    <p v-if="msg" class="msg" :class="{ error: msgIsError, success: !msgIsError }">{{ msg }}</p>
+  </div>
 </template>
+
+<style scoped>
+.cc-login {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.2px;
+}
+
+.input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+}
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 9px 0;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.msg { font-size: 12px; text-align: center; min-height: 16px; }
+.msg.error { color: var(--red); }
+.msg.success { color: #34c759; }
+</style>

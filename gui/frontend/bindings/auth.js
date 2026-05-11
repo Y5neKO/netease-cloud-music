@@ -13,3 +13,5 @@ export function LoginByCookie(cookieStr) { return auth().LoginByCookie(cookieStr
 export function LoginByCookieFile(filePath) { return auth().LoginByCookieFile(filePath) }
 export function LoginByCookieCloud(server, uuid, password) { return auth().LoginByCookieCloud(server, uuid, password) }
 export function Logout() { return auth().Logout() }
+export function SaveConfig(key, value) { return auth().SaveConfig(key, value) }
+export function LoadConfig(key) { return auth().LoadConfig(key) }
